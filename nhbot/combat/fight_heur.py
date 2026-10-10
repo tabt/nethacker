@@ -1,3 +1,4 @@
+import re
 from collections import defaultdict
 from itertools import product
 
@@ -496,6 +497,34 @@ def in_gehennom(agent):
     return jf_config.GEHENNOM_DIVE and agent.current_level().dungeon_number == 1
 
 
+# hypothesis: dive_logic's eel/kraken/python hold-escape (write Elbereth so monflee releases us before the
+# wrapping monster's next, HP-independent drowning hit) only runs inside the dig-dive escape loop and the
+# castle lift's CFP_EEL -- both assume we're carrying a digging tool or running the castle plan. A diver with
+# no pick (an elf Wizard, say) that gets grabbed by a water monster during ordinary fight2 combat has no such
+# defense at all, since elbereth_action()'s generic multi-monster heuristic only fires below 30 HP and a wrap
+# drowns on the next hit regardless of current HP. Giving fight2 the same, HP-independent escape should remove
+# this uncovered death mode (a Dlvl-24 wiz-elf-cha-mal game drowned by a python outside any dig/castle context)
+# without touching any already-tuned heuristic.
+_EEL_GRAB = re.compile(r'(eel|kraken) swings itself around you|You cannot escape from the [a-z ]*(eel|kraken)')
+_PYTHON_GRAB = re.compile(r'python swings itself around you|You cannot escape from the [a-z ]*python')
+WATER_HOLD_GAP = 3   # turns after the last grab message the escape stays armed
+
+
+def water_hold_escape_action(agent, monsters):
+    if in_gehennom(agent) or not agent.can_engrave():
+        return []
+    turn = agent.blstats.time
+    last = getattr(agent, '_water_hold_turn', -10)
+    if _EEL_GRAB.search(agent.message) or (jf_config.PYTHON_HOLD and _PYTHON_GRAB.search(agent.message)):
+        last = turn
+        agent._water_hold_turn = last
+    if turn - last > WATER_HOLD_GAP:
+        return []
+    if agent.inventory.engraving_below_me.lower() == 'elbereth' and not agent.character.prop.blind:
+        return []
+    return [(1000, ('elbereth',))]
+
+
 def elbereth_action(agent, monsters):
     if agent.inventory.engraving_below_me.lower() == 'elbereth':
         return []
@@ -584,6 +613,7 @@ def get_available_actions(agent, monsters):
     if to_pickup:
         actions.append((15, ('pickup', to_pickup)))
 
+    actions.extend(water_hold_escape_action(agent, monsters))
     actions.extend(elbereth_action(agent, monsters))
     actions.extend(wait_action(agent, monsters))
 

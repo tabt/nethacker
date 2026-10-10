@@ -1709,15 +1709,7 @@ DURABLE_WALK = 15                   # BFS steps a hold walks to the level's engr
 # 0.243 vs 0.210 and 0.326 vs <=0.223) -- a Wizard starts with two identified rings -- and lost ~0.01 per identity
 # elsewhere (0.2836 vs 0.2864 overall); CleverShovel's own public-seed panels: negative on most non-Wizard identities.
 # Measured on e29eb82's Wizard (Dlvl-1 grind, no force bolt), not on this engine's: A/B it here.
-# hypothesis: a Wizard starts with two identified rings (u_init.c) that this engine currently never wears or
-# otherwise exploits; CleverShovel's module (already ported and role-gated to Wizards via RING_WEAR_ROLES /
-# RING_SCROLL_ROLES below) wears whatever of those -- and any later found ring/amulet -- always helps (slow
-# digestion, free action, poison resistance, gain Str/Con, life saving, poison protection), wears the
-# combat-only ones only near a hostile, sheds everything but slow digestion while Hungry, and reads unknown
-# scrolls at a safe moment to identify what is carried. This should raise survival/progress for wiz-elf-cha-mal
-# (and other Wizards) without touching any other role, since every RING_* strategy below still no-ops unless
-# jf_config.RING_MODULE is on and the character's role is in RING_WEAR_ROLES / RING_SCROLL_ROLES.
-RING_MODULE = True                  # master switch (A/B pending: on for Wizards only)
+RING_MODULE = False                 # master switch (A/B pending: on for Wizards only)
 RING_WEAR_ROLES = ('Wizard',)       # role names for the wearing strategies below (None: every role)
 RING_WEAR_IDENTIFIED = True         # the always-wear list (ring_amulet_config.ALWAYS_WEAR_*)
 RING_COMBAT_ONLY_WEAR = True        # protection / increase accuracy / increase damage / reflection near hostiles only

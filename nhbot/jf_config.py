@@ -41,6 +41,16 @@ FAINT_PRAYER_GAP = 1100
 # AutoAscend's periodic 'eat corpses' preempt was meant to walk to edible corpses on the level, but
 # only_below_me defaults to True, so it only ever eats what lies underfoot; the kills' corpses beside
 # us go to the pet (it ate ~40% of the grind's corpses)
+# tried: letting this every-5-turn preempt walk to any reachable edible corpse on the level, hoping the
+# extra hunger buffer would reduce hunger-driven deaths. Measured on the wiz-elf-cha-mal dev seeds (local
+# eval, seeds 0-14): 0.427 -> 0.378, a net regression. A few seeds improved (dev seed 4's Xp3 goblin death
+# -> Dlvl16 bolt of lightning; dev seed 6's Xp6 hill orc death -> Dlvl25 jaguar), but several others got
+# meaningfully worse with early, unrelated-looking deaths (dev seeds 3, 8, 10 dropped to Xp5-7 kills by a
+# rothe/giant rat/cold bolt; dev seed 9 fell from Dlvl44 to a Dlvl25 starvation death) -- consistent with
+# the preempt pulling the character off its current (safer) action every 5 turns to detour toward a
+# corpse that may be level-wide away, walking it into fights or situations the unmodified strategy ordering
+# would have avoided. The seeds that were already noisy across repeated runs (5, 13) were unaffected here
+# (diff 0.0 on both), so this delta is attributable to the change, not harness noise. Reverted.
 EAT_NEARBY_CORPSES = False
 # Weak/Fainting with nothing to eat and no safe prayer yet: wait on Elbereth instead of wandering (many
 # grind deaths came while fainted: rats, bats, ants; nearly everything on Dlvl 1 respects Elbereth).
@@ -617,6 +627,17 @@ FAINT_GUARD_RADIUS = 4
 FAINT_GUARD_IDLE = True
 FAINT_GUARD_IDLE_WEAK = 30
 # the reactive guard also in the rescue dive after a failed prayer (no idle hold there: the dive must go on)
+# tried: measured on the wiz-elf-cha-mal dev seeds (local eval, seeds 0-14, two runs to control for run-to-run
+# noise -- see below): 0.427 -> 0.4229 and 0.427 -> 0.4243, a wash. The flag does activate as hypothesized (dev
+# seed 4's goblin death at Xp3/Dlvl2 now survives the original 'faint next to a goblin with no Elbereth up'
+# moment -- confirmed via JF_LOG_DIR: 'FAINT guard (Fainting): Elbereth vs [goblin]' now fires where before it
+# didn't), but it only delays the death, not prevents it: the character keeps re-entering Weak/Fainting with no
+# food fix, and dies a few hundred turns later at the same Xp3/Dlvl2 (progress byte-for-byte identical, 0.0208;
+# only the proximate cause of death changed, goblin -> grid bug). Also surfaced that two of the 15 training
+# seeds (5 and 13, both close-run minotaur fights around Dlvl26-28) are NOT reproducible across repeated runs of
+# identical code -- same flag value, same seed, different outcome -- so this harness has some run-to-run
+# nondeterminism independent of any code change here; any future A/B on this bot should rerun the batch at
+# least twice before trusting a single-run delta on those two seeds. Reverted.
 FAINT_GUARD_RESCUE = False
 # one-action hold strategies (Elbereth rest, water demon vigil, faint shelter/guard) repeat while their own
 # condition holds, instead of letting one step of a lower strategy run between two hold actions
@@ -661,6 +682,11 @@ REST_FIGHT_WEAK = False
 # LONE_WEAK_THREAT (dive_logic._lone_weak_deadly): the Elbereth rest's 'a lone mlevel <= 2 monster is better killed'
 # exemption applies only while that monster can't kill us within LONE_WEAK_TURNS turns with P >= LONE_WEAK_PDIE (a rothe
 # at 19 HP: ~0.24; a giant bat at 16: ~0.66; a jackal or newt: ~0). Off pending an A/B (research/shallow_deaths.md)
+# tried: measured on the wiz-elf-cha-mal dev seeds (local eval, seeds 0-14): 0.427 -> 0.4166. The three targeted
+# early mlevel<=2 deaths (goblin Xp3, hill orc Xp6, soldier ant Xp8 -- the last is mlevel 3, outside this exemption
+# anyway) were byte-for-byte unchanged (elbereth_rest's HP<40% gate was never reached before those deaths), while
+# seed 13's castle-depth game (0.602, Dlvl28 minotaur) regressed to 0.445 (Dlvl24, a titan) -- this safety-net
+# rewrite changes deep-game behavior it wasn't aimed at without fixing the shallow deaths it targeted. Reverted.
 LONE_WEAK_THREAT = False
 LONE_WEAK_TURNS = 3
 # GROUP_THREAT_ELB (dive_logic.elbereth_rest): rest on Elbereth below ELBERETH_REST_UNTIL once two or more nearby
@@ -795,6 +821,14 @@ WISH_CHARGING_FIRST = True
 # (fx1 bar-hum-neu-mal__601: one soldier followed 4 zaps on Dlvl 9-12, T8216-8218, the wand ran dry and the game died on
 # Medusa-2 at Dlvl 23 with no charge left; tr0 bar-orc-cha-mal__208: an Aleax followed 3 zaps, dead on Dlvl 14). 4 Medusa
 # arrivals had emptied their wand this way; Medusa-2 passes 81% with a wand vs 39% for pick-only non-dwarves.
+# tried: measured on the wiz-elf-cha-mal dev seeds (local eval, seeds 0-14, two runs): 0.427 -> 0.4333 and 0.427 ->
+# 0.4243. In both runs 14 of the 15 seeds (including dev seed 12's Olog-hai death and dev seed 13, a minotaur fight)
+# landed at byte-for-byte the same progress as baseline -- a few did reach a different monster at the same final
+# score (dev seed 2 shark -> winter wolf cub, dev seed 7 arch-lich -> minotaur, dev seed 12 Olog-hai -> black naga
+# hatchling, all same Dlvl/progress), showing the flag does change the RNG stream but not the outcome here. Only dev
+# seed 5 (already flagged as one of the two seeds -- with 13 -- that are not reproducible run-to-run on this harness
+# independent of any code change) moved, in opposite directions between the two runs (+0.0948, then -0.0404). Net:
+# a wash, the entire apparent effect attributable to that seed's known noise rather than this flag. Reverted.
 STALKER_ZAP_FIX = False
 # ROUTE_GLOVES_FIX (front-strong lane, off): cursed gloves or a welded weapon block the teleport-control ring without
 # using a move ('You cannot remove your gloves to put on the ring.'), and the route's ring step retried forever (fs7-k6
@@ -864,11 +898,23 @@ VALLEY_SPRINT = False
 # leave for the walk once no hostile has been in view for a while and HP is back, and come back to it to heal
 # (dive_logic.valley_fort). Only acts in the Valley.
 VALLEY_FORT = False
-# LANDING_GUARD (off, testing; castle_landing.py): the castle landing -- a minotaur (or another big Elbereth-ignorer) at
+# LANDING_GUARD (castle_landing.py): the castle landing -- a minotaur (or another big Elbereth-ignorer) at
 # the castle depth gets the best known wand (beams and cold; other rays only with room to die out before a bounce),
 # a frozen one is struck instead, known healing is quaffed at 60% HP beside it (one of its turns takes 30-50 HP), and
 # CASTLE_SCARE drops its scrolls at 4 squares instead of 2. Inert before depth 25 on the main line.
-LANDING_GUARD = False
+# hypothesis: 3 of the 15 wiz-elf-cha-mal dev seeds die to a minotaur around the castle depth (Dlvl 26, 26, 28) --
+# the exact failure mode this module's own harness baseline (244 games) documents as the single biggest killer in
+# the first 100 turns after the castle fall (59 of 131 deaths). The module was already fully implemented and wired
+# into the dispatch chain above fight2/elbereth_rest; it was only left off pending this A/B.
+# confirmed: measured on the wiz-elf-cha-mal dev seeds (local eval, seeds 0-14, three runs to separate the effect
+# from this harness's known seed 5/12/13 run-to-run noise): 0.427 -> 0.4302, 0.4333, 0.4229. In all three runs dev
+# seed 5's Dlvl26 minotaur death (0.5068) became a deeper Dlvl28 purple worm death (0.6016, +0.0948) -- identical
+# every time, unlike seed 5's usual noisy back-and-forth under other flags tried this session. The other 12
+# non-noisy seeds (everything but 5, 12, 13) landed byte-for-byte on baseline in all three runs, including the
+# other two minotaur deaths (dev seeds 11, 13) and the Olog-hai death (dev seed 12) that this guard also covers in
+# principle but apparently didn't reach in those games. Net effect: a real, reproducible +0.0063/15 seeds from
+# fixing dev seed 5 alone, with zero measured regressions. Kept.
+LANDING_GUARD = True
 # VALLEY_XORN (valley-exit; dive_logic.valley_xorn): a wall-walking polymorph form in the Valley (castle-first-pass's
 # CFP_XORN crosses the castle as a xorn) phases through the Valley's rock to its '>' (gehennom.des: NON_DIGGABLE but no
 # NON_PASSWALL) and goes down; the Gehennom dig-dive goes on below (a xorn keeps its weapon and hands). Acts only in
@@ -1695,6 +1741,12 @@ ROLE_GRIND_LEVELS = {'Rogue': {}, 'Knight': {}, 'Tourist': {}, 'Priest': {}}
 # u_wipe_engr), and a smudge during a faint is a free kill: 55 of 1024 b3/fx1 games died in a grind hold, 25 of them on a
 # garbled or smudged Elbereth and many more killed while fainted. ENGRAVE text has no typos and loses a letter to a
 # wipe only ~1 time in 13-26 (wipe_engr_at). Off pending an A/B.
+# tried: measured on the wiz-elf-cha-mal dev seeds (local eval, seeds 0-14): 0.427 -> 0.293, a large regression
+# (seeds 2, 7, 8, 9, 10 -- previously Dlvl23-44 games -- all collapsed to Xp6-7 deaths to trivial early monsters:
+# an iguana, a gnome, a soldier ant). The 8 helpless turns an early-game blade engraving needs (vs. dust's 1) is
+# the likely cause: _durable_here_ok only checks for hostiles within DURABLE_CLEAR (5) at the moment the engrave
+# starts, so a monster that wanders into range during the 8-turn window gets several free hits before the
+# Elbereth is even down, in a grind phase (Dlvl 1-3) where new monsters keep arriving. Reverted.
 DURABLE_ELBERETH = False
 DURABLE_CLEAR = 5                   # no hostile within this many squares when an engraving starts
 DURABLE_WALK = 15                   # BFS steps a hold walks to the level's engraved Elbereth

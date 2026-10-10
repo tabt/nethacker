@@ -395,6 +395,12 @@ RAVEN_HOLD_IDLE = 6            # turns with nothing next to us / hurting us befo
 # we drown on the spot. base3 lost 7 Medusa digs this way ('You sink like a rock', no 'try to crawl out'). Dig a
 # wet square only with DROWN_GUARD_EXITS such squares around it: walk to one if the ground is the problem, wait
 # on Elbereth up to DROWN_GUARD_WAIT turns if monsters are.
+# tried: measured on the wiz-elf-cha-mal dev seeds (local eval, seeds 0-14, two runs): 0.427 -> 0.4107 and 0.427 ->
+# 0.4243. 14 of 15 seeds landed byte-for-byte on the same progress as baseline in both runs, including dev seed 14's
+# targeted Dlvl27 'drowned in deep water' death, which was completely unaffected (this guard's dig-order_here_ok
+# trigger must not be the path that death went through). Only dev seed 5 (one of the two seeds already known to be
+# non-reproducible run-to-run on this harness, independent of code) moved, and run1's apparent seed 12/13
+# regressions also vanished in run2 -- all noise, no real effect found. Reverted.
 DROWN_GUARD = False
 DROWN_GUARD_EXITS = 2
 DROWN_GUARD_WAIT = 15

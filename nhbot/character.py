@@ -639,14 +639,6 @@ class Character:
             roll_offset += skill_hit_bonus
             roll_offset += launcher.get_weapon_bonus(large_monster)[0]
             dmg_bonus += launcher.get_weapon_bonus(large_monster)[1]
-        else:
-            # hypothesis: a bare-handed throw (e.g. a Rogue's signature dagger) uses the
-            # thrown item's own weapon skill (P_DAGGER etc.), same as get_melee_bonus does
-            # for a wielded weapon -- this term was missing here, silently zeroing a Rogue's
-            # Expert-dagger bonus (+3 to-hit/+2 damage) in every ranged-vs-melee DPS compare.
-            skill_hit_bonus, skill_dmg_bonus = self._get_weapon_skill_bonus(ammo)
-            roll_offset += skill_hit_bonus
-            dmg_bonus += skill_dmg_bonus
 
         roll_offset += ammo.get_weapon_bonus(large_monster)[0]
         dmg_bonus += ammo.get_weapon_bonus(large_monster)[1]
